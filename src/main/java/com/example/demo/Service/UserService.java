@@ -7,7 +7,6 @@ import java.util.List;
 import javax.transaction.Transactional;
 
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Configurable;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
@@ -20,10 +19,6 @@ import com.example.demo.domain.User;
 import com.example.demo.domain.UserDTO;
 import com.example.demo.repos.RoleRepo;
 import com.example.demo.repos.UserRepo;
-
-import ch.qos.logback.classic.Logger;
-import lombok.extern.java.Log;
-import lombok.extern.log4j.Log4j2;
 import lombok.extern.slf4j.Slf4j;
 
 @Service
@@ -44,21 +39,47 @@ public class UserService implements UserDetailsService{
 	 * */
 	
 	
-	public User saveUser(User user)
+	public User saveUser(User user) throws Exception
 	{
-		user.roles.forEach(role -> {
-			saveRole(role);
-		});
 		
-		user.setPassword(passwordEncoder.encode(user.getPassword()));
+		User searchUser = userRepo.findByEmail(user.email);
+		if (searchUser != null) {
+			throw new Exception("User already exists");
+		}
+		 
+		
+		
+		try {
+			
+			if(user.roles != null)
+			{
+				user.roles.forEach(role -> {
+					saveRole(role);
+				});			
+			}
+			else
+			{
+				user.roles = new ArrayList<>();
+				user.roles.add(new Role());
+				user.roles.get(0).roleName = "customer";
+				saveRole(user.roles.get(0));
+			}
+			
+			user.setPassword(passwordEncoder.encode(user.getPassword()));
+			
+		} catch (Exception e) {
+			throw new Exception(e);
+		}
 		
 		return userRepo.save(user);
 	}
+	
 	
 	public Role saveRole(Role role)
 	{
 		return roleRepo.save(role);
 	}
+	
 	
 	public User setRoleToUser(String username, String roleName)
 	{
@@ -69,11 +90,13 @@ public class UserService implements UserDetailsService{
 		return user;
 	}
 	
+	
 	public UserDTO getUser(String username)
 	{
 		User user = userRepo.findByUsername(username);
 		return new UserDTO(user.getId(), user.getUsername(), user.getEmail());
 	}
+	
 	
 	public UserDTO getUser(Long id)
 	{
@@ -81,10 +104,17 @@ public class UserService implements UserDetailsService{
 		return new UserDTO(user.getId(), user.getUsername(), user.getEmail());
 	}
 	
-	public UserDTO getUserByEmail(String email)
+	
+	public UserDTO getUserByEmailDTO(String email)
 	{
 		User user = userRepo.findByEmail(email);
 		return new UserDTO(user.getId(), user.getUsername(), user.getEmail());
+	}
+	
+	public User getUserByEmail(String email)
+	{
+		User user = userRepo.findByEmail(email);
+		return user;
 	}
 	
 	public List<User> getAllUsers()
